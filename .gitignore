@@ -1,0 +1,12 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/ApiService
+/ApiService/.config
+/ApiService/bin
+/ApiService/obj
+/ApiService/Properties
+/Application.Data/obj
+/ApiUnitTest/bin/Release/net5.0
+/ApiUnitTest/obj
