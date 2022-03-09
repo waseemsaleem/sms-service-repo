@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Text;
 using ApiService.Models;
 using ApiService.Services.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace ApiService.Controllers
 {
@@ -11,75 +14,44 @@ namespace ApiService.Controllers
     [ApiController]
     public class OutboundController : ControllerBase
     {
-        private readonly accountdbContext _context;
         private readonly IPhoneService _phoneService;
-        private readonly ILogger<InboundController> _log;
+        private readonly ILogger<OutboundController> _log;
         private readonly IDistributedCache _distributedCache;
-        public OutboundController(accountdbContext context, 
-            IPhoneService phoneService,
-            IDistributedCache distributedCache,
-            ILogger<InboundController> log)
+        private readonly IConfiguration _configuration;
+        public OutboundController(IPhoneService phoneService, IConfiguration configuration, IDistributedCache distributedCache, ILogger<OutboundController> log)
         {
-            _context = context;
+           
             _phoneService = phoneService;
-            _log = log;
+            _configuration = configuration;
             _distributedCache = distributedCache;
+            _log = log;
         }
 
         [HttpPost]
-        [Route("AddOutboundSms")]
-        public IActionResult AddOutboundSms([FromBody] PhoneNumber phoneNumberObject)
+        [Route("sms")]
+        public IActionResult OutboundSms([FromBody] PhoneNumber smsRequest)
         {
-            PhoneNumber phoneEntity = new PhoneNumber();
+            var cacheKey = "outboundSms";
             try
             {
-                if (phoneNumberObject != null)
+                if (smsRequest != null)
                 {
-                    if (string.IsNullOrEmpty(phoneNumberObject.From))
-                    {
-                        return BadRequest(new { error = "From Number is  Missing or Empty!" });
-                    }
+                    int.TryParse(_configuration.GetSection("Redis").GetSection("AbsoluteExpiration").Value, out int absoluteExpiryTime);
+                    int.TryParse(_configuration.GetSection("Redis").GetSection("SlidingExpiration").Value, out int slidingExpiryTime);
 
-                    if (phoneNumberObject.From.Length < 6)
-                    {
-                        return BadRequest(new { error = "From Number should be minimum 6 characters!" });
-                    }
-
-                    if (phoneNumberObject.From.Length > 16)
-                    {
-                        return BadRequest(new { error = "From Number should Not be more than   16 characters!" });
-                    }
-
-                    if (string.IsNullOrEmpty(phoneNumberObject.To))
-                    {
-                        return BadRequest(new { error = "To Number is Empty or Missing!" });
-
-                    }
-
-                    if (phoneNumberObject.To.Length < 6)
-                    {
-                        return BadRequest(new { error = "To Number should be minimum 6 characters!" });
-                    }
-
-                    if (phoneNumberObject.To.Length > 16)
-                    {
-                        return BadRequest(new { error = "To Number should Not be more than  minimum 16 characters!" });
-                    }
-
-                    //phoneEntity.To = phoneNumberObject.To;
-                    //phoneEntity.From = phoneNumberObject.From;
-                    //phoneEntity.AccountId = phoneNumberObject.AccountId;
-                    //phoneEntity.Number = phoneNumberObject.Number;
-                    //phoneEntity.Text = phoneNumberObject.Text;
-                    _phoneService.Add(phoneNumberObject);
-
+                    var serializedMessageObject = JsonConvert.SerializeObject(smsRequest);
+                    var redisMessageObject = Encoding.UTF8.GetBytes(serializedMessageObject);
+                    var options = new DistributedCacheEntryOptions()
+                        .SetAbsoluteExpiration(DateTime.Now.AddHours(absoluteExpiryTime))
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(slidingExpiryTime));
+                    _distributedCache.SetAsync(cacheKey, redisMessageObject, options);
+                    _phoneService.InOutboundSms(smsRequest);
                 }
                 return Ok(new
                 {
                     message = "Outbound SMS OK",
-                    phoneNumberObject = phoneNumberObject
+                    phoneNumberObject = smsRequest
                 });
-
             }
             catch (Exception ex)
             {

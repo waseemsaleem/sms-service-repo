@@ -1,34 +1,36 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System;
-using ApiService.Models;
+﻿using ApiService.Models;
 using ApiService.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace ApiService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class InboundController : ControllerBase
     {
-        private readonly accountdbContext _context;
         private readonly IPhoneService _phoneService;
         private readonly ILogger<InboundController> _log;
         private readonly IDistributedCache _distributedCache;
         private readonly IConfiguration _configuration;
-        public InboundController(
-            IPhoneService phoneService)
-            
-         
+        public InboundController(IPhoneService phoneService, IConfiguration configuration, IDistributedCache distributedCache, ILogger<InboundController> log)
         {
             _phoneService = phoneService;
-
-    
+            _configuration = configuration;
+            _distributedCache = distributedCache;
+            _log = log;
         }
 
         [HttpPost]
-        [Route("InboundSMS")]
+        [Route("sms")]
         public IActionResult InboundSms([FromBody] PhoneNumber smsRequest)
         {
             var cacheKey = "inboundSms";
@@ -36,16 +38,16 @@ namespace ApiService.Controllers
             {
                 if (smsRequest != null)
                 {
-                    //string absoluteExpiryTime = _configuration.GetSection("Redis").GetSection("AbsoluteExpiration").Value;
-                    //string slidingExpiryTime = _configuration.GetSection("Redis").GetSection("SlidingExpiration").Value;
+                    int.TryParse(_configuration.GetSection("Redis").GetSection("AbsoluteExpiration").Value, out int absoluteExpiryTime);
+                    int.TryParse(_configuration.GetSection("Redis").GetSection("SlidingExpiration").Value, out int slidingExpiryTime);
 
-                    //var serializedMessageObject = JsonConvert.SerializeObject(smsRequest);
-                    //var redisMessageObject = Encoding.UTF8.GetBytes(serializedMessageObject);
-                    //var options = new DistributedCacheEntryOptions()
-                    //    .SetAbsoluteExpiration(DateTime.Now.AddMinutes(10))
-                    //    .SetSlidingExpiration(TimeSpan.FromMinutes(2));
-                    //_distributedCache.SetAsync(cacheKey, redisMessageObject, options);
-                    _phoneService.Save(smsRequest);
+                    var serializedMessageObject = JsonConvert.SerializeObject(smsRequest);
+                    var redisMessageObject = Encoding.UTF8.GetBytes(serializedMessageObject);
+                    var options = new DistributedCacheEntryOptions()
+                        .SetAbsoluteExpiration(DateTime.Now.AddHours(absoluteExpiryTime))
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(slidingExpiryTime));
+                    _distributedCache.SetAsync(cacheKey, redisMessageObject, options);
+                    _phoneService.InOutboundSms(smsRequest);
                 }
                 return Ok(new
                 {
@@ -61,32 +63,5 @@ namespace ApiService.Controllers
 
         }
 
-        //[HttpGet]
-        //[Route("GetInboundSMS")]
-        //public async Task<ActionResult<IEnumerable<PhoneNumber>>> GetInboundSMS()
-        //{
-        //    var cacheKey = "inboundSms";
-
-        //    string serializedMessagesList;
-        //    var messageList = new List<PhoneNumber>();
-        //    var redisMessagesList = await _distributedCache.GetAsync(cacheKey);
-        //    if (redisMessagesList != null)
-        //    {
-        //        serializedMessagesList = Encoding.UTF8.GetString(redisMessagesList);
-        //        messageList = JsonConvert.DeserializeObject<List<PhoneNumber>>(serializedMessagesList);
-        //    }
-        //    else
-        //    {
-        //        messageList = await _context.PhoneNumbers.ToListAsync();
-        //        serializedMessagesList = JsonConvert.SerializeObject(messageList);
-        //        redisMessagesList = Encoding.UTF8.GetBytes(serializedMessagesList);
-        //        var options = new DistributedCacheEntryOptions()
-        //            .SetAbsoluteExpiration(DateTime.Now.AddMinutes(10))
-        //            .SetSlidingExpiration(TimeSpan.FromMinutes(2));
-        //        await _distributedCache.SetAsync(cacheKey, redisMessagesList, options);
-        //    }
-        //    return messageList;
-
-        //}
     }
 }

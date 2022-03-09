@@ -22,7 +22,7 @@ namespace ApiService.Services
             return result;
         }
 
-        public GenericResponse Save(PhoneNumber smsRequest)
+        public GenericResponse InOutboundSms(PhoneNumber smsRequest)
         {
             var phoneEntity = new PhoneNumber();
             var response = new GenericResponse();
@@ -33,38 +33,71 @@ namespace ApiService.Services
                 {
                     if (string.IsNullOrEmpty(smsRequest.From))
                     {
-                        response.Errors.Add(new ErrorMessage() { Error = "From Number is  Missing or Empty!", HttpStatusCode = HttpStatusCode.BadRequest });
+                        response.Error = "From Number is  Missing or Empty!";
+                        response.Message = "";
+                        return response;
                     }
 
                     if (smsRequest.From.Length < 6)
                     {
-                        response.Errors.Add(new ErrorMessage() { Error = "From Number should be minimum 6 characters!", HttpStatusCode = HttpStatusCode.BadRequest });
+                        response.Error = "From Number should be minimum 6 characters!";
+                        response.Message = "";
+                        return response;
                     }
 
                     if (smsRequest.From.Length > 16)
                     {
-                        response.Errors.Add(new ErrorMessage() { Error = "From Number should Not be more than   16 characters!", HttpStatusCode = HttpStatusCode.BadRequest });
+                        response.Error = "From Number should Not be more than   16 characters!";
+                        response.Message = "";
+                        return response;
                     }
 
                     if (string.IsNullOrEmpty(smsRequest.To))
                     {
-                        response.Errors.Add(new ErrorMessage() { Error = "To Number is Empty or Missing!", HttpStatusCode = HttpStatusCode.BadRequest });
+                        response.Error = "To Number is Empty or Missing!";
+                        response.Message = "";
+                        return response;
                     }
 
                     if (smsRequest.To.Length < 6)
                     {
-                        response.Errors.Add(new ErrorMessage() { Error = "To Number should be minimum 6 characters!", HttpStatusCode = HttpStatusCode.BadRequest });
+                        response.Error = "To Number should be minimum 6 characters!";
+                        response.Message = "";
+                        return response;
                     }
 
                     if (smsRequest.To.Length > 16)
                     {
-                        response.Errors.Add(new ErrorMessage() { Error = "To Number should Not be more than  minimum 16 characters!", HttpStatusCode = HttpStatusCode.BadRequest });
-
+                        response.Error = "To Number should Not be more than  minimum 16 characters!";
+                        response.Message = "";
+                        return response;
                     }
 
-                    if (response.Errors.Any())
+                    if (string.IsNullOrEmpty(smsRequest.Text))
                     {
-                        response.Success = false;
+                        response.Error = "Message is Empty or Missing!";
+                        response.Message = "";
+                        return response;
+                    }
+
+                    if (smsRequest.Text.Length < 1)
+                    {
+                        response.Error = "Message should be minimum 1 characters!";
+                        response.Message = "";
+                        return response;
+                    }
+
+                    if (smsRequest.Text.Length > 120)
+                    {
+                        response.Error = "Message should Not be more than  minimum 120 characters!";
+                        response.Message = "";
+                        return response;
+                    }
+
+                    if (smsRequest.Text.ToLower().Contains("stop"))
+                    {
+                        response.Error = "Stop word is not supported";
+                        response.Message = string.Empty;
                         return response;
                     }
 
@@ -75,14 +108,13 @@ namespace ApiService.Services
                     phoneEntity.Text = smsRequest.Text;
                     _context.Add(smsRequest);
                     _context.SaveChanges();
-                    response.Success = true;
-                    response.Messages.Add("SMS is saved successfully.");
+                    response.Message = "Inbound Sms is Ok.";
                 }
             }
             catch (Exception ex)
             {
-                response.Success = false;
-                response.Errors.Add(new ErrorMessage() { Error = ex.Message });
+                response.Error = "Unknown Failure";
+                response.Message = string.Empty;
                 return response;
             }
             return response;
@@ -96,11 +128,6 @@ namespace ApiService.Services
             return phoneNumber;
         }
 
-        public PhoneNumber Add(PhoneNumber phoneDetails)
-        {
-            _context.Add(phoneDetails);
-            _context.SaveChanges();
-            return phoneDetails;
-        }
+       
     }
 }

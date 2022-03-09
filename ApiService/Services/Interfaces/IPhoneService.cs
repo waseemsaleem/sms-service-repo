@@ -7,8 +7,7 @@ namespace ApiService.Services.Interfaces
    public interface IPhoneService
     {
         IEnumerable<PhoneNumber> GetAll();
-        GenericResponse Save(PhoneNumber phoneDetails);
-        PhoneNumber Add(PhoneNumber phoneDetails);
+        GenericResponse InOutboundSms(PhoneNumber phoneDetails);
 
     }
 }
