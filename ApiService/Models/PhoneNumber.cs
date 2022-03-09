@@ -7,6 +7,8 @@ namespace ApiService.Models
     public partial class PhoneNumber
     {
         public int Id { get; set; }
+        public int MessageCount { get; set; }
+
         [Required(ErrorMessage = "Phone Number Required")]
         [MinLength(6, ErrorMessage = "Phone Number should be minimum 6 characters")]
         [MaxLength(16, ErrorMessage = "Phone Number Should not be More than 16 characters")]

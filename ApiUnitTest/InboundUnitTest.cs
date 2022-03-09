@@ -15,6 +15,7 @@ namespace ApiUnitTest
         public Mock<IConfiguration> Config = new Mock<IConfiguration>();
         public Mock<IDistributedCache> Cache = new Mock<IDistributedCache>();
         public Mock<ILogger<InboundController>> Log = new Mock<ILogger<InboundController>>();
+        public Mock<accountdbContext> Context = new Mock<accountdbContext>();
 
         [Fact]
         public void InboundSms()
@@ -28,7 +29,7 @@ namespace ApiUnitTest
                 Number = "03061981436"
             };
             Service.Setup(p => p.InOutboundSms(smsRequest));
-            InboundController inboundController = new InboundController(Service.Object, Config.Object,Cache.Object,Log.Object);
+            InboundController inboundController = new InboundController(Service.Object, Config.Object,Cache.Object,Log.Object,Context.Object);
             var result = inboundController.InboundSms(smsRequest);
             Assert.NotNull(result);
         }

@@ -16,7 +16,7 @@ namespace ApiService.Services
             _context = context;
         }
 
-        public IEnumerable<PhoneNumber> GetAll()
+        public List<PhoneNumber> GetAll()
         {
             var result = _context.PhoneNumbers.ToList();
             return result;
@@ -106,6 +106,7 @@ namespace ApiService.Services
                     phoneEntity.AccountId = smsRequest.AccountId;
                     phoneEntity.Number = smsRequest.Number;
                     phoneEntity.Text = smsRequest.Text;
+                    phoneEntity.MessageCount += 1;
                     _context.Add(smsRequest);
                     _context.SaveChanges();
                     response.Message = "Inbound Sms is Ok.";
