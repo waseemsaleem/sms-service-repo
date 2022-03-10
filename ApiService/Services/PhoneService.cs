@@ -106,7 +106,6 @@ namespace ApiService.Services
                     phoneEntity.AccountId = smsRequest.AccountId;
                     phoneEntity.Number = smsRequest.Number;
                     phoneEntity.Text = smsRequest.Text;
-                    phoneEntity.MessageCount += 1;
                     _context.Add(smsRequest);
                     _context.SaveChanges();
                     response.Message = "Inbound Sms is Ok.";

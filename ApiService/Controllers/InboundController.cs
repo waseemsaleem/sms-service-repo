@@ -11,13 +11,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ApiService.ViewModels;
 using Newtonsoft.Json;
+using StackExchange.Redis;
 
 namespace ApiService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class InboundController : ControllerBase
     {
         private readonly IPhoneService _phoneService;
@@ -38,14 +40,18 @@ namespace ApiService.Controllers
         [Route("sms")]
         public async Task<IActionResult> InboundSms([FromBody] PhoneNumber smsRequest)
         {
-            var cacheKey = "inboundSmsKey";
+            var cacheKey = "InboundSmsKey";
+            GenericResponse response = null;
+
             try
             {
                 if (smsRequest != null)
                 {
-
-                    int.TryParse(_configuration.GetSection("Redis").GetSection("AbsoluteExpiration").Value, out int absoluteExpiryTime);
-                    int.TryParse(_configuration.GetSection("Redis").GetSection("SlidingExpiration").Value, out int slidingExpiryTime);
+                    int.TryParse(_configuration.GetSection("Redis").GetSection("AbsoluteExpirationForInbound").Value, out int absoluteExpiryTime);
+                    int.TryParse(_configuration.GetSection("Redis").GetSection("SlidingExpirationForInbound").Value, out int slidingExpiryTime);
+                    var options = new DistributedCacheEntryOptions()
+                        .SetAbsoluteExpiration(DateTime.Now.AddHours(absoluteExpiryTime))
+                        .SetSlidingExpiration(TimeSpan.FromHours(slidingExpiryTime));
                     string serializedMessagesList;
                     var messageList = new List<PhoneNumber>();
                     var redisMessagesList = await _distributedCache.GetAsync(cacheKey);
@@ -56,47 +62,31 @@ namespace ApiService.Controllers
                     }
                     else
                     {
-                        messageList = _phoneService.GetAll();
+                        messageList = _phoneService.GetAll().Select(p => new PhoneNumber()
+                        {
+                            To = p.To,
+                            From = p.From
+                        }).ToList();
                         serializedMessagesList = JsonConvert.SerializeObject(messageList);
                         redisMessagesList = Encoding.UTF8.GetBytes(serializedMessagesList);
-                        var options1 = new DistributedCacheEntryOptions()
-                            .SetAbsoluteExpiration(DateTime.Now.AddHours(absoluteExpiryTime))
-                            .SetSlidingExpiration(TimeSpan.FromHours(slidingExpiryTime));
-                        await _distributedCache.SetAsync(cacheKey, redisMessagesList, options1);
+                        await _distributedCache.SetAsync(cacheKey, redisMessagesList, options);
                     }
-                    var fromNumber = smsRequest.From;
-                    var toNumber = smsRequest.To;
-                    //var message = messageList.Where(p => p.From == smsRequest.From && p.To == smsRequest.To).FirstOrDefault();
-                    var message = messageList.Where(p => p.From == smsRequest.From && p.To == smsRequest.To).ToList();
 
-                    foreach (var item in message)
+                    response = _phoneService.InOutboundSms(smsRequest);
+
+                    messageList.Add(new PhoneNumber()
                     {
-                        if (!string.IsNullOrEmpty(item.From) && !string.IsNullOrEmpty(item.To))
-                        {
-                            if (smsRequest.To == item.To && smsRequest.From == item.From)// && item.MessageCount >= 50)
-                            {
-                                return BadRequest(new
-                                {
-                                    error = $"Sms From {fromNumber} to {toNumber} blocked by Stop Request"
-                                });
-                            }
-
-                        }
-
-                    }
-                    _phoneService.InOutboundSms(smsRequest);
-                    var data = _phoneService.GetAll();
-                    messageList = data;
+                        From = smsRequest.From,
+                        To = smsRequest.To
+                    });
                     serializedMessagesList = JsonConvert.SerializeObject(messageList);
                     redisMessagesList = Encoding.UTF8.GetBytes(serializedMessagesList);
-                    var options = new DistributedCacheEntryOptions()
-                        .SetAbsoluteExpiration(DateTime.Now.AddHours(absoluteExpiryTime))
-                        .SetSlidingExpiration(TimeSpan.FromHours(slidingExpiryTime));
                     await _distributedCache.SetAsync(cacheKey, redisMessagesList, options);
                 }
                 return Ok(new
                 {
-                    message = "Inbound SMS OK",
+                    message = response.Message,
+                    error = response.Error,
                     phoneNumberObject = smsRequest
                 });
             }

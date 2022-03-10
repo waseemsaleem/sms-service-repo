@@ -1,0 +1,16 @@
+version: '3.4'
+
+services:
+  apiservice:
+   ports:
+      - 4000:4000
+  db:
+    environment:
+      POSTGRES_PASSWORD: example
+  adminer:
+    ports:
+      - 8080:8080
+  cache:
+   ports:
+      - '6379:6379'
+    

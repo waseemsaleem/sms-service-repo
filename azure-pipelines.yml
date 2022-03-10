@@ -1,4 +1,13 @@
 # ASP.NET Core (.NET Framework)
+- task: DockerCompose@0
+  inputs:
+    containerregistrytype: 'Azure Container Registry'
+    azureSubscription: 'Pay-As-You-Go(563034fe-c888-4b37-a392-fa310f36108e)'
+    azureContainerRegistry: '{"loginServer":"slabs360acr.azurecr.io", "id" : "/subscriptions/563034fe-c888-4b37-a392-fa310f36108e/resourceGroups/dev-test-rg/providers/Microsoft.ContainerRegistry/registries/slabs360acr"}'
+    dockerComposeFile: '**/docker-compose.yml'
+    additionalDockerComposeFiles: '**/docker-compose.override.yml'
+    action: 'Run a Docker Compose command'
+    dockerComposeCommand: 'Build services'
 # Build and test ASP.NET Core projects targeting the full .NET Framework.
 # Add steps that publish symbols, save build artifacts, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
